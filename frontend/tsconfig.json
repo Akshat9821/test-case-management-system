@@ -24,8 +24,6 @@
     ]
   },
   "include": [
-    "src",
-    "api",
-    "backend"
+    "src"
   ]
 }
