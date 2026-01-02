@@ -190,3 +190,4 @@ After running `npm run seed` in the backend, you'll have:
 Login credentials are displayed in the terminal after seeding.
 
 
+
