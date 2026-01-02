@@ -23,7 +23,26 @@ export const Login: React.FC = () => {
         navigate('/dashboard', { replace: true });
       }, 100);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      console.error('Login error caught in component:', err);
+      let errorMessage = 'Login failed';
+
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.response?.data?.error) {
+        // If error is an object, try to get message or stringify it
+        const serverError = err.response.data.error;
+        if (typeof serverError === 'string') {
+          errorMessage = serverError;
+        } else if (serverError.message) {
+          errorMessage = serverError.message;
+        } else {
+          errorMessage = JSON.stringify(serverError);
+        }
+      }
+
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
