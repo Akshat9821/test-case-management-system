@@ -20,39 +20,48 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Swagger configuration
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Test Case Management API',
-      version: '1.0.0',
-      description: 'API documentation for Test Case Management System',
-    },
-    servers: [
-      {
-        url: `http://localhost:${PORT}`,
-        description: 'Development server',
+let swaggerSpec: any;
+try {
+  const swaggerOptions = {
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Test Case Management API',
+        version: '1.0.0',
+        description: 'API documentation for Test Case Management System',
       },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+      servers: [
+        {
+          url: `http://localhost:${PORT}`,
+          description: 'Development server',
+        },
+        {
+          url: `https://${process.env.VERCEL_URL}`,
+          description: 'Production server',
+        }
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
         },
       },
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-  apis: ['./src/routes/*.ts'],
-};
-
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+    apis: ['./src/routes/*.ts'],
+  };
+  swaggerSpec = swaggerJsdoc(swaggerOptions);
+} catch (error) {
+  console.error('Swagger initialization failed:', error);
+  swaggerSpec = null;
+}
 
 // Middleware
 app.use(helmet());
@@ -62,7 +71,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (swaggerSpec) {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -74,7 +85,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 
 // Health check
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
