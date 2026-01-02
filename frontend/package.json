@@ -17,7 +17,6 @@
     "@types/react-dom": "^18.2.17",
     "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.2.1",
-    "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
     "vite": "^5.0.8"
   },
@@ -28,20 +27,6 @@
     "start": "vite"
   },
   "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "extends": []
   }
 }
