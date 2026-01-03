@@ -2,15 +2,15 @@ import express, { Response } from 'express';
 import pool from '../db/connection';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { validateProject, handleValidationErrors, sanitizeInput } from '../middleware/validation';
-import { invalidateCache } from '../middleware/cache';
+import { invalidateCache, cacheMiddleware } from '../middleware/cache';
 
 const router = express.Router();
 
-// Get all projects (accessible to all authenticated users)
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+// Get all projects (accessible to all authenticated users) - cached for 1 hour
+router.get('/', authenticate, cacheMiddleware(60 * 60), async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    
+
     // Get projects where user is a member or is admin/test-lead
     const result = await pool.query(
       `SELECT DISTINCT p.*, u.name as created_by_name
@@ -21,7 +21,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
        ORDER BY p.created_at DESC`,
       [userId, req.user!.role]
     );
-    
+
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching projects:', error);
@@ -29,12 +29,12 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Get project by ID
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+// Get project by ID - cached for 1 hour
+router.get('/:id', authenticate, cacheMiddleware(60 * 60), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    
+
     const result = await pool.query(
       `SELECT p.*, u.name as created_by_name,
        (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count
@@ -46,11 +46,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
        )`,
       [id, userId, req.user!.role]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
     // Get project members
     const members = await pool.query(
       `SELECT u.id, u.email, u.name, u.role
@@ -59,7 +59,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
        WHERE pm.project_id = $1`,
       [id]
     );
-    
+
     res.json({ ...result.rows[0], members: members.rows });
   } catch (error) {
     console.error('Error fetching project:', error);
@@ -79,20 +79,20 @@ router.post(
     try {
       const { name, description, version, status = 'active' } = req.body;
       const createdBy = req.user!.id;
-      
+
       const result = await pool.query(
         'INSERT INTO projects (name, description, version, status, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
         [name, description, version, status, createdBy]
       );
-      
+
       // Add creator as project member
       await pool.query('INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)', [
         result.rows[0].id,
         createdBy,
       ]);
-      
+
       await invalidateCache('/api/projects');
-      
+
       res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -113,18 +113,18 @@ router.put(
     try {
       const { id } = req.params;
       const { name, description, version, status } = req.body;
-      
+
       const result = await pool.query(
         'UPDATE projects SET name = $1, description = $2, version = $3, status = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
         [name, description, version, status, id]
       );
-      
+
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      
+
       await invalidateCache('/api/projects');
-      
+
       res.json(result.rows[0]);
     } catch (error) {
       console.error('Error updating project:', error);
@@ -143,14 +143,14 @@ router.post(
     try {
       const { id } = req.params;
       const { user_id } = req.body;
-      
+
       await pool.query('INSERT INTO project_members (project_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
         id,
         user_id,
       ]);
-      
+
       await invalidateCache('/api/projects');
-      
+
       res.status(201).json({ message: 'Member added successfully' });
     } catch (error) {
       console.error('Error adding member:', error);
@@ -167,11 +167,11 @@ router.delete(
   async (req: AuthRequest, res: Response) => {
     try {
       const { id, userId } = req.params;
-      
+
       await pool.query('DELETE FROM project_members WHERE project_id = $1 AND user_id = $2', [id, userId]);
-      
+
       await invalidateCache('/api/projects');
-      
+
       res.json({ message: 'Member removed successfully' });
     } catch (error) {
       console.error('Error removing member:', error);
