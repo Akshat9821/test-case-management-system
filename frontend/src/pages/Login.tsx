@@ -30,15 +30,17 @@ export const Login: React.FC = () => {
         errorMessage = err;
       } else if (err.message) {
         errorMessage = err.message;
-      } else if (err.response?.data?.error) {
-        // If error is an object, try to get message or stringify it
-        const serverError = err.response.data.error;
-        if (typeof serverError === 'string') {
-          errorMessage = serverError;
-        } else if (serverError.message) {
-          errorMessage = serverError.message;
-        } else {
-          errorMessage = JSON.stringify(serverError);
+      } else if (err.response?.data) {
+        const data = err.response.data;
+        // Prioritize the detailed message field we added in the backend
+        if (data.message) {
+          errorMessage = data.message;
+          // Add hint if available
+          if (data.hint) {
+            errorMessage += ` (${data.hint})`;
+          }
+        } else if (data.error) {
+          errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
         }
       }
 
