@@ -13,6 +13,7 @@ import testSuiteRoutes from './routes/testSuites';
 import testExecutionRoutes from './routes/testExecutions';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/users';
+import debugRoutes from './routes/debug';
 
 dotenv.config();
 
@@ -72,6 +73,7 @@ app.use('/api/testsuites', testSuiteRoutes);
 app.use('/api/testexecutions', testExecutionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -98,6 +100,7 @@ if (require.main === module) {
 }
 
 export default app;
+
 
 
 
