@@ -3,7 +3,9 @@
 
 try {
     // Load the compiled backend server
-    const app = require('../backend/dist/server.js');
+    // Note: TypeScript's 'export default' compiles to 'exports.default' in CommonJS
+    const serverModule = require('../backend/dist/server.js');
+    const app = serverModule.default || serverModule;
 
     // Export the Express app as the serverless function handler
     module.exports = app;
