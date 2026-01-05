@@ -20,7 +20,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
+
+// Debug logging
+console.log('🔧 API Configuration:');
+console.log('  VITE_API_URL env var:', import.meta.env.VITE_API_URL);
+console.log('  Using API_URL:', API_URL);
+console.log('  Current origin:', window.location.origin);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -41,16 +47,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const login = useCallback(async (email: string, password: string) => {
+    const loginUrl = `${API_URL}/auth/login`;
+    console.log('🔐 Attempting login to:', loginUrl);
+
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+      const response = await axios.post(loginUrl, { email, password });
       const { token: newToken, user: userData } = response.data;
       localStorage.setItem('token', newToken);
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       setToken(newToken);
       setUser(userData);
+      console.log('✅ Login successful');
       return userData;
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
+      console.error('  Error type:', error.constructor.name);
+      console.error('  Error message:', error.message);
+      console.error('  Response status:', error.response?.status);
+      console.error('  Response data:', error.response?.data);
+      console.error('  Request URL:', error.config?.url);
+
       if (error.response && error.response.data && error.response.data.message) {
         throw new Error(error.response.data.message);
       }
