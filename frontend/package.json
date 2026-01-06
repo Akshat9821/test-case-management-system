@@ -47,7 +47,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "cd .. && cd backend && npm install --include=dev && npm run build && cd ../frontend && tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "vite"
   },
