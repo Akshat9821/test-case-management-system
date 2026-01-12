@@ -60,6 +60,18 @@ router.post('/login', authLimiter, sanitizeInput, validateLogin, handleValidatio
   try {
     const { email, password } = req.body;
 
+    // #region agent log
+    console.log(JSON.stringify({
+      sessionId:'debug-session',
+      runId:'pre-fix',
+      hypothesisId:'H4',
+      location:'backend/src/routes/auth.ts:login',
+      message:'login attempt',
+      data:{emailMasked: typeof email === 'string' ? email.replace(/(.{2}).+(@.+)/,'$1***$2') : 'unknown'},
+      timestamp:Date.now()
+    }));
+    // #endregion
+
     // Find user
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
@@ -92,6 +104,17 @@ router.post('/login', authLimiter, sanitizeInput, validateLogin, handleValidatio
     });
   } catch (error) {
     console.error('Login error:', error);
+    // #region agent log
+    console.log(JSON.stringify({
+      sessionId:'debug-session',
+      runId:'pre-fix',
+      hypothesisId:'H4',
+      location:'backend/src/routes/auth.ts:login:error',
+      message:'login error caught',
+      data:{errorMessage:(error as Error).message, errorName:(error as Error).name, hasStack:!!(error as Error).stack},
+      timestamp:Date.now()
+    }));
+    // #endregion
     return res.status(500).json({
       error: 'Internal server error',
       message: (error as Error).message,

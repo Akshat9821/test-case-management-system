@@ -7,7 +7,7 @@ const redisClient = createClient({
 
 redisClient.on('error', (err) => console.error('Redis Client Error', err));
 
-// Connect to Redis with timeout
+// Connect to Redis with timeout - non-blocking, don't crash if it fails
 (async () => {
   try {
     if (process.env.REDIS_URL && !redisClient.isOpen) {
@@ -18,12 +18,37 @@ redisClient.on('error', (err) => console.error('Redis Client Error', err));
 
       await Promise.race([connectPromise, timeoutPromise]);
       console.log('Redis connected');
+      // #region agent log
+      console.log(JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'backend/src/middleware/cache.ts:redis-connected',
+        message: 'Redis connection successful',
+        data: {},
+        timestamp: Date.now()
+      }));
+      // #endregion
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Redis connection failed or timed out:', error);
-    // Continue without Redis
+    // #region agent log
+    console.log(JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'H1',
+      location: 'backend/src/middleware/cache.ts:redis-failed',
+      message: 'Redis connection failed - continuing without cache',
+      data: { errorMessage: error?.message },
+      timestamp: Date.now()
+    }));
+    // #endregion
+    // Continue without Redis - don't crash the app
   }
-})();
+})().catch((error) => {
+  // Extra safety - catch any unhandled promise rejections
+  console.error('Redis initialization error (caught):', error);
+});
 
 export const cacheMiddleware = (duration: number) => {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -35,6 +60,10 @@ export const cacheMiddleware = (duration: number) => {
     const key = `cache:${req.originalUrl}`;
 
     try {
+      // Check if Redis is available before using it
+      if (!redisClient.isOpen) {
+        return next();
+      }
       const cached = await redisClient.get(key);
       if (cached) {
         return res.json(JSON.parse(cached));
@@ -45,13 +74,16 @@ export const cacheMiddleware = (duration: number) => {
 
       // Override json function to cache response
       res.json = function (body: any) {
-        redisClient.setEx(key, duration, JSON.stringify(body)).catch(console.error);
+        if (redisClient.isOpen) {
+          redisClient.setEx(key, duration, JSON.stringify(body)).catch(console.error);
+        }
         return originalJson(body);
       };
 
       next();
     } catch (error) {
       console.error('Cache error:', error);
+      // Always continue - cache is optional
       next();
     }
   };
@@ -59,12 +91,16 @@ export const cacheMiddleware = (duration: number) => {
 
 export const invalidateCache = async (pattern: string) => {
   try {
+    if (!redisClient.isOpen) {
+      return; // Redis not available, skip cache invalidation
+    }
     const keys = await redisClient.keys(`cache:${pattern}*`);
     if (keys.length > 0) {
       await redisClient.del(keys);
     }
   } catch (error) {
     console.error('Cache invalidation error:', error);
+    // Don't throw - cache is optional
   }
 };
 

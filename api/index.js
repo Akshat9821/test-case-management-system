@@ -5,6 +5,18 @@ const path = require('path');
 let app = null;
 let loadError = null;
 
+// #region agent log
+console.log(JSON.stringify({
+  sessionId:'debug-session',
+  runId:'pre-fix',
+  hypothesisId:'H1',
+  location:'api/index.js:startup',
+  message:'api handler startup',
+  data:{cwd:process.cwd()},
+  timestamp:Date.now()
+}));
+// #endregion
+
 try {
     console.log('=== API Handler Starting ===');
     console.log('Current directory:', __dirname);
@@ -23,6 +35,18 @@ try {
         console.log('Files in dist:', distFiles);
     }
 
+    // #region agent log
+    console.log(JSON.stringify({
+      sessionId:'debug-session',
+      runId:'pre-fix',
+      hypothesisId:'H1',
+      location:'api/index.js:load',
+      message:'loading backend dist',
+      data:{serverPath, distExists:fs.existsSync(distPath), serverExists:fs.existsSync(serverPath)},
+      timestamp:Date.now()
+    }));
+    // #endregion
+
     // Try to load the backend
     const serverModule = require('../backend/dist/server.js');
     console.log('Module loaded, type:', typeof serverModule);
@@ -37,6 +61,18 @@ try {
     }
 
     console.log('=== Backend loaded successfully ===');
+
+    // #region agent log
+    console.log(JSON.stringify({
+      sessionId:'debug-session',
+      runId:'pre-fix',
+      hypothesisId:'H1',
+      location:'api/index.js:loadSuccess',
+      message:'backend load success',
+      data:{appType:typeof app},
+      timestamp:Date.now()
+    }));
+    // #endregion
 } catch (error) {
     console.error('=== Backend loading failed ===');
     console.error('Error:', error.message);
@@ -115,14 +151,36 @@ module.exports = (req, res) => {
 
     // Backend loaded successfully, forward the request
     try {
+        // #region agent log
+        console.log(JSON.stringify({
+            sessionId:'debug-session',
+            runId:'pre-fix',
+            hypothesisId:'H1',
+            location:'api/index.js:request-handler',
+            message:'Forwarding request to Express app',
+            data:{method:req.method, path:req.url},
+            timestamp:Date.now()
+        }));
+        // #endregion
         app(req, res);
     } catch (error) {
         console.error('Error handling request:', error);
+        // #region agent log
+        console.log(JSON.stringify({
+            sessionId:'debug-session',
+            runId:'pre-fix',
+            hypothesisId:'H1',
+            location:'api/index.js:request-error',
+            message:'Request handling error',
+            data:{errorMessage:error?.message, errorName:error?.name},
+            timestamp:Date.now()
+        }));
+        // #endregion
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({
             error: 'Request handling failed',
-            message: error.message
+            message: error?.message || 'Unknown error'
         }));
     }
 };
